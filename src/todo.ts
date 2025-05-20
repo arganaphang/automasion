@@ -23,14 +23,8 @@ abstract class TodoService {
   static updateTodo(
     id: string,
     updatedTodo: Pick<Todo, "title" | "completed">
-  ): Todo | undefined {
+  ): Todo {
     const todoIndex = this.todos.findIndex((todo) => todo.id === id);
-    if (todoIndex === -1) {
-      this.todos[todoIndex] = {
-        ...this.todos[todoIndex]!,
-        ...updatedTodo,
-      };
-    }
     this.todos[todoIndex] = {
       ...this.todos[todoIndex]!,
       ...updatedTodo,
@@ -46,31 +40,74 @@ abstract class TodoService {
 }
 
 export const todoRoutes = new Elysia({ prefix: "/todos" })
-  .get("/", ({ set }) => {
-    set.status = 200;
-    return {
-      success: true,
-      message: "Todos fetched",
-      data: TodoService.getTodos(),
-    };
-  })
-  .get("/:id", ({ set, params }) => {
-    const todo = TodoService.getTodoById(params.id);
-    if (!todo) {
-      set.status = 404;
+  .get(
+    "/",
+    ({ set }) => {
+      set.status = 200;
       return {
-        success: false,
-        message: "Todo not found",
-        data: null,
+        success: true,
+        message: "Todos fetched",
+        data: TodoService.getTodos(),
       };
+    },
+    {
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Array(
+            t.Object({
+              id: t.String(),
+              title: t.String(),
+              completed: t.Boolean(),
+              createdAt: t.Date(),
+            })
+          ),
+        }),
+      },
+      tags: ["Todos"],
     }
-    set.status = 200;
-    return {
-      success: true,
-      message: "Todo fetched",
-      data: todo,
-    };
-  })
+  )
+  .get(
+    "/:id",
+    ({ set, params }) => {
+      const todo = TodoService.getTodoById(params.id);
+      if (!todo) {
+        set.status = 404;
+        return {
+          success: false,
+          message: "Todo not found",
+          data: null,
+        };
+      }
+      set.status = 200;
+      return {
+        success: true,
+        message: "Todo fetched",
+        data: todo,
+      };
+    },
+    {
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Object({
+            id: t.String(),
+            title: t.String(),
+            completed: t.Boolean(),
+            createdAt: t.Date(),
+          }),
+        }),
+        404: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Null(),
+        }),
+      },
+      tags: ["Todos"],
+    }
+  )
   .post(
     "/",
     ({ set, body }) => {
@@ -87,7 +124,22 @@ export const todoRoutes = new Elysia({ prefix: "/todos" })
         data: newTodo,
       };
     },
-    { body: t.Object({ title: t.String() }) }
+    {
+      body: t.Object({ title: t.String() }),
+      response: {
+        201: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Object({
+            id: t.String(),
+            title: t.String(),
+            completed: t.Boolean(),
+            createdAt: t.Date(),
+          }),
+        }),
+      },
+      tags: ["Todos"],
+    }
   )
   .put(
     "/:id",
@@ -109,23 +161,61 @@ export const todoRoutes = new Elysia({ prefix: "/todos" })
         data: updatedTodo,
       };
     },
-    { body: t.Object({ title: t.String(), completed: t.Boolean() }) }
+    {
+      body: t.Object({ title: t.String(), completed: t.Boolean() }),
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Object({
+            id: t.String(),
+            title: t.String(),
+            completed: t.Boolean(),
+            createdAt: t.Date(),
+          }),
+        }),
+        404: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Null(),
+        }),
+      },
+      tags: ["Todos"],
+    }
   )
-  .delete("/:id", ({ set, params }) => {
-    const todo = TodoService.getTodoById(params.id);
-    if (!todo) {
-      set.status = 404;
+  .delete(
+    "/:id",
+    ({ set, params }) => {
+      const todo = TodoService.getTodoById(params.id);
+      if (!todo) {
+        set.status = 404;
+        return {
+          success: false,
+          message: "Todo not found",
+          data: null,
+        };
+      }
+      TodoService.deleteTodo(params.id);
+      set.status = 200;
       return {
-        success: false,
-        message: "Todo not found",
+        success: true,
+        message: "Todo deleted",
         data: null,
       };
+    },
+    {
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Null(),
+        }),
+        404: t.Object({
+          success: t.Boolean(),
+          message: t.String(),
+          data: t.Null(),
+        }),
+      },
+      tags: ["Todos"],
     }
-    TodoService.deleteTodo(params.id);
-    set.status = 200;
-    return {
-      success: true,
-      message: "Todo deleted",
-      data: null,
-    };
-  });
+  );
